@@ -1,0 +1,35 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Recepción · Check-ins</title>
+<style>:root{--bg:#faf6ef;--c:#fff;--ink:#26261f;--l:#e7dfd1;--a:#46604a;--m:#6f6c63}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,sans-serif;padding:20px}.w{max-width:960px;margin:auto}
+.card{background:var(--c);border:1px solid var(--l);border-radius:16px;padding:16px;margin-bottom:14px}input,select{padding:10px;border:1px solid var(--l);border-radius:10px;font:inherit;width:100%;background:var(--bg)}
+button{background:var(--a);color:#fff;border:0;border-radius:999px;padding:8px 16px;font:600 .88rem system-ui;cursor:pointer}button.g{background:#fff;color:var(--a);border:1px solid var(--a)}.r{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end}
+.hd{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}.tag{border-radius:8px;padding:2px 9px;font-size:.78rem;background:#e0eee5}.tag.p{background:#f7ddd2}pre{white-space:pre-wrap;background:var(--bg);border-radius:10px;padding:10px;font:13px/1.45 ui-monospace,monospace;margin:10px 0 0;display:none}.m{color:var(--m);font-size:.85rem}</style></head><body><div class="w">
+<h2>Recepción · Check-ins online</h2>
+<div class="card" id="lg"><div class="r"><div><label>Email</label><input id="e" autocomplete="username"></div><div><label>Contraseña</label><input id="p" type="password" autocomplete="current-password"></div><button id="in">Entrar</button></div><p id="m" class="m"></p></div>
+<div id="app" style="display:none"><div class="card hd"><div><label>Mostrar</label><select id="f"><option value="pending">Pendientes de enviar al Ministerio</option><option value="all">Todos</option></select></div><div style="display:flex;gap:8px"><button class="g" id="csv">Descargar CSV</button><button class="g" id="rf">Actualizar</button></div></div>
+<p class="m">Tienes 24 h desde la reserva o el inicio del servicio para comunicar cada parte en SES.HOSPEDAJES (Nueva comunicación → Rellenar formulario). Verifica los documentos originales en la llegada. Conservación: 3 años desde el fin del servicio; borra después.</p><div id="list"></div></div></div>
+<script>
+const SUPA="https://szaidfeomzupwymkxwbs.supabase.co",KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6YWlkZmVvbXp1cHd5bWt4d2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNjc2MzIsImV4cCI6MjEwNzc0MzYzMn0.fs_bZlSHrdCqHSlNQZ6AS4y1U5Lpz8hE5-XRcXfTCHE";let tok="",L=[];
+const $=i=>document.getElementById(i),H=()=>({apikey:KEY,Authorization:"Bearer "+tok,"Content-Type":"application/json"});
+const e2=s=>String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const SX={H:"Hombre",M:"Mujer",O:"Otro"};
+$("in").onclick=async()=>{const m=$("m");m.textContent="Entrando…";
+ try{const res=await fetch(SUPA+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json"},body:JSON.stringify({email:$("e").value.trim(),password:$("p").value})});
+  let r={};try{r=await res.json()}catch(x){}
+  if(!res.ok||!r.access_token){m.textContent=r.error_code==="email_not_confirmed"?"El usuario no está confirmado: en Supabase, Authentication → Users, bórralo y créalo de nuevo marcando «Auto Confirm User».":(res.status==400||res.status==401||res.status==422?"Email o contraseña incorrectos.":"Supabase responde con error "+res.status+". Si el proyecto está pausado, reactívalo en supabase.com/dashboard.");return}
+  tok=r.access_token;$("lg").style.display="none";$("app").style.display="block";load()}
+ catch(x){m.textContent="No se pudo conectar con Supabase. Lo más probable es que el proyecto esté pausado: entra en supabase.com/dashboard, abre el proyecto y pulsa «Restore project». Si no, revisa tu conexión."}};
+$("p").addEventListener("keydown",e=>{if(e.key==="Enter")$("in").click()});
+const txt=c=>`Entrada: ${c.arrival}  Salida: ${c.departure}\nMatrícula: ${c.plates}  Teléfono: ${c.phone}  Email: ${c.email||"-"}  Pago: ${c.pay_method||"-"}  Reserva: ${c.booking_ref||"-"}\n`+c.travellers.map((t,i)=>`\nViajero ${i+1}: ${t.nm} ${t.ap} (${SX[t.sx]||t.sx}) nacido el ${t.bd}\n  Nacionalidad: ${t.nat}  Documento: ${t.dt} ${t.dn}${t.sp?" soporte "+t.sp:""}\n  Domicilio: ${t.ad}, ${t.cp} ${t.ci} (${t.co})${t.rel?"\n  Parentesco: "+t.rel:""}`).join("");
+async function load(){const q=$("f").value=="pending"?"&status=eq.pending":"";L=await fetch(SUPA+"/rest/v1/checkins?select=*&order=created_at.desc"+q,{headers:H()}).then(r=>r.json());
+ if(!Array.isArray(L)){$("list").innerHTML='<div class="card m">No se pudo leer la tabla de check-ins ( '+e2((L&&(L.message||L.hint))||"error")+' ). Si dice que no existe, ejecuta checkins.sql en Supabase.</div>';return}
+ $("list").innerHTML=Array.isArray(L)&&L.length?L.map((c,i)=>`<div class="card"><div class="hd"><div><b>${e2(c.arrival)} → ${e2(c.departure)}</b> · ${e2(c.plates)} · ${c.travellers.length} viajero(s) <span class="tag ${c.status=="sent"?"":"p"}">${c.status=="sent"?"enviado":"pendiente"}</span></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="g" data-v="${i}">Ver datos</button><button class="g" data-c="${i}">Copiar</button>${c.status!="sent"?`<button data-s="${i}">Marcar enviado</button>`:""}<button class="g" data-d="${i}">Borrar</button></div></div><div class="m">Recibido: ${new Date(c.created_at).toLocaleString("es-ES")}</div><pre id="pre${i}">${e2(txt(c))}</pre></div>`).join(""):'<div class="card m">Sin check-ins.</div>'}
+document.addEventListener("click",async e=>{const b=e.target.dataset;if(!b)return;
+ if(b.v!==undefined){const p=$("pre"+b.v);p.style.display=p.style.display=="block"?"none":"block"}
+ if(b.c!==undefined){try{await navigator.clipboard.writeText(txt(L[+b.c]));e.target.textContent="Copiado"}catch(x){alert("No se pudo copiar")}}
+ if(b.s!==undefined){await fetch(SUPA+"/rest/v1/checkins?id=eq."+L[+b.s].id,{method:"PATCH",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify({status:"sent",sent_at:new Date().toISOString()})});load()}
+ if(b.d!==undefined&&confirm("¿Borrar este check-in definitivamente?")){await fetch(SUPA+"/rest/v1/checkins?id=eq."+L[+b.d].id,{method:"DELETE",headers:H()});load()}});
+$("f").onchange=load;$("rf").onclick=load;
+$("csv").onclick=()=>{const cols=["arrival","departure","plates","phone","email","pay_method","booking_ref"],tc=["nm","ap","sx","bd","nat","dt","dn","sp","ad","ci","cp","co","rel"],q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+ const rows=[[...cols,...tc].map(q).join(",")];L.forEach(c=>c.travellers.forEach(t=>rows.push([...cols.map(k=>c[k]),...tc.map(k=>t[k])].map(q).join(","))));
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+rows.join("\n")],{type:"text/csv"}));a.download="checkins.csv";a.click()};
+</script></body></html>
