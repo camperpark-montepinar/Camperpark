@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /recepcion.html
+Disallow: /nuevo.html
+
+Sitemap: https://www.camperpark-montepinar.com/sitemap.xml
